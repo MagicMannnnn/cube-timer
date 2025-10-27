@@ -25,7 +25,7 @@ export const defaultSettings:Settings = {
   phases:1,
   sidebarColor:'#171b24',
   panelColor:'#1b1f2a',
-  timerColor:'#22aaee',
+  timerColor:'#e7e7e7ff',
   bgColor:'#0f1115',
   textColor:'#e7e7e7',
   mutedColor:'#9aa1a9',

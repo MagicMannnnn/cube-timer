@@ -5,6 +5,11 @@ import React from 'react'
 import { NewSessionModal, DeleteSessionModal } from '@/components/SessionModals'
 function getScaleFromSolve(best: number | null, worst: number | null, ms: number | null) { if (best == null || worst == null || ms == null) return null; if (worst === best) return 0; return (ms - best) / (worst - best) }
 
+
+import { useState, useEffect } from "react";
+
+
+
 export default function Sidebar({ onSelectSolve }: { onSelectSolve: (id: string) => void }) {
   const { sessions, current, currentId, setCurrentId, addSession, deleteSession } = useSessions()
   const { settings } = useSettings()
@@ -14,8 +19,21 @@ export default function Sidebar({ onSelectSolve }: { onSelectSolve: (id: string)
   const okTimes = current.solves.map(x => x.status === 'DNF' ? null : (x.timeMs + (x.status === 'PLUS2' ? 2000 : 0))).filter((x) => x != null) as number[]
   const best = okTimes.length ? Math.min(...okTimes) : null
   const worst = okTimes.length ? Math.max(...okTimes) : null
+
+  const breakpoint = 680;
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= breakpoint);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= breakpoint);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [breakpoint]);
+
+  const sidebar = document.querySelector('.sidebar');
+
   return (
     <aside className="sidebar">
+      {isMobile ? <div className="sidebar-resize" onTouchStart={() => {sidebar?.classList.toggle('collapsed');}}></div> : null} 
       <div className="session-header">
         <select value={currentId} onChange={e => setCurrentId(e.target.value)}>
           {sessions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}

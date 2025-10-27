@@ -1,37 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 type UseTimerOpts = {
-  holdToStartMs:number
-  phases:number
-  onStop:(elapsed:number, splits:number[])=>void
+  holdToStartMs: number
+  phases: number
+  onStop: (elapsed: number, splits: number[]) => void
 }
 
-export function useTimer({holdToStartMs,phases,onStop}:UseTimerOpts){
-  const [running,setRunning] = useState(false)
-  const [ready,setReady] = useState(false)
-  const [holding,setHolding] = useState(false)
-  const [elapsed,setElapsed] = useState(0)
-  const [splitCount,setSplitCount] = useState(0)
-  const startRef = useRef<number| null>(null)
-  const holdStartRef = useRef<number| null>(null)
-  const rafRef = useRef<number| null>(null)
+export function useTimer({ holdToStartMs, phases, onStop }: UseTimerOpts) {
+  const [running, setRunning] = useState(false)
+  const [ready, setReady] = useState(false)
+  const [holding, setHolding] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+  const [splitCount, setSplitCount] = useState(0)
+
+  const startRef = useRef<number | null>(null)
+  const holdStartRef = useRef<number | null>(null)
+  const rafRef = useRef<number | null>(null)
   const splitsRef = useRef<number[]>([])
 
-  const start = useCallback(()=>{
+  // Start timer
+  const start = useCallback(() => {
     setRunning(true)
     setSplitCount(0)
     splitsRef.current = []
     const t0 = performance.now()
     startRef.current = t0
-    const tick = (t:number)=>{
+
+    const tick = (t: number) => {
       if (!startRef.current) return
       setElapsed(t - startRef.current)
       rafRef.current = requestAnimationFrame(tick)
     }
-    rafRef.current = requestAnimationFrame(tick)
-  },[])
 
-  const finalize = useCallback(()=>{
+    rafRef.current = requestAnimationFrame(tick)
+  }, [])
+
+  // Finalize timer
+  const finalize = useCallback(() => {
     if (!startRef.current) return
     const total = performance.now() - startRef.current
     setRunning(false)
@@ -40,53 +45,86 @@ export function useTimer({holdToStartMs,phases,onStop}:UseTimerOpts){
     startRef.current = null
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     onStop(total, splitsRef.current.slice())
-  },[onStop])
+  }, [onStop])
 
-  const stopOrSplit = useCallback(()=>{
+  // Stop or split
+  const stopOrSplit = useCallback(() => {
     if (!startRef.current) return
     const now = performance.now()
     const curElapsed = now - startRef.current
-    const p = Math.max(1, phases|0)
-    if (p>1 && splitCount < p-1){
+    const p = Math.max(1, phases | 0)
+    if (p > 1 && splitCount < p - 1) {
       splitsRef.current.push(curElapsed)
-      setSplitCount(c=>c+1)
+      setSplitCount((c) => c + 1)
       return
     }
     finalize()
-  },[phases,splitCount,finalize])
+  }, [phases, splitCount, finalize])
 
-  useEffect(()=>{
-    const onKeyDown = (e:KeyboardEvent)=>{
-      if (e.code==='Space'){ e.preventDefault()
-      if (running){ return } // wait for keyup to split/stop
-      if (!holding){
-        setHolding(true)
-        holdStartRef.current = performance.now()
-      }}
+  // Hold start (touch/mouse/keyboard)
+  const handleHoldStart = useCallback(() => {
+    if (running) return
+    if (!holding) {
+      setHolding(true)
+      holdStartRef.current = performance.now()
     }
-    const onKeyUp = (e:KeyboardEvent)=>{
-      if (e.code==='Space'){ e.preventDefault()
-        if (running){ stopOrSplit(); return }
-        if (!running && ready){ start() }
-        setReady(false)
-        setHolding(false)
-        holdStartRef.current = null
+  }, [running, holding])
+
+  // Hold end (touch/mouse/keyboard)
+  const handleHoldEnd = useCallback(() => {
+    if (running) {
+      stopOrSplit()
+      return
+    }
+    if (ready && !running) start()
+    setReady(false)
+    setHolding(false)
+    holdStartRef.current = null
+  }, [running, ready, start, stopOrSplit])
+
+  // Keyboard support
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault()
+        handleHoldStart()
       }
     }
-    const id = setInterval(()=>{
-      if (holding && !running && holdStartRef.current){
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault()
+        handleHoldEnd()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [handleHoldStart, handleHoldEnd])
+
+  // Interval to check if hold duration has been reached
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (holding && !running && holdStartRef.current) {
         const d = performance.now() - holdStartRef.current
         if (d >= holdToStartMs) setReady(true)
       }
     }, 10)
-    window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('keyup', onKeyUp)
-    return ()=>{
-      clearInterval(id)
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('keyup', onKeyUp)
-    }
-  },[running,ready,holding,holdToStartMs,start,stopOrSplit])
+    return () => clearInterval(id)
+  }, [holding, running, holdToStartMs])
 
-  return { running, ready, holding, elapsed, start, stop: finalize, splitCount }
+  return {
+    running,
+    ready,
+    holding,
+    elapsed,
+    start,
+    stop: finalize,
+    splitCount,
+    handleHoldStart,
+    handleHoldEnd,
+  }
 }

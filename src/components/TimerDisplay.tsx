@@ -21,7 +21,7 @@ export default function TimerDisplay({onSolve}:{onSolve:(ms:number, scramble:str
 
   const [scramble,setScramble] = React.useState(genScramble(settings.event as any))
   useEffect(()=>{ setScramble(genScramble(settings.event as any)) },[settings.event])
-  const {running,ready,holding,elapsed,stop} = useTimer({
+  const {running,ready,holding,elapsed,stop, handleHoldStart, handleHoldEnd} = useTimer({
     holdToStartMs: effHold,
     phases: effPhases,
     onStop:(ms,splits)=>{ onSolve(ms, scramble, splits); setScramble(genScramble(settings.event as any)) }
@@ -42,7 +42,7 @@ export default function TimerDisplay({onSolve}:{onSolve:(ms:number, scramble:str
   return (
     <div className="timer-wrap">
       <div className="scramble">{scramble}</div>
-      <div className="timer-center">
+      <div className="timer-center" onTouchStart={(e) => { handleHoldStart(); }} onTouchEnd={handleHoldEnd}>
         <div className={`timer ${stateClass}`} aria-live="polite">{display}</div>
       </div>
     </div>
