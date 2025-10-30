@@ -37,7 +37,7 @@ export default function TimerDisplay({onSolve}:{onSolve:(ms:number, scramble:str
   const showLive = effPrecision !== 'no-live'
   const display = running
     ? (showLive ? formatMsPrec(elapsed, dp) : 'solve')
-    : formatMsPrec(elapsed, dp)
+    : formatMsPrec(elapsed, Math.max(dp, 2))
 
   return (
     <div className="timer-wrap">

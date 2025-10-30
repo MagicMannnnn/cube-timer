@@ -4,17 +4,20 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "preview": "vite preview",
     "build": "set VITE_BASE='/cube-timer/' && vite build",
-    "predeploy": "npm run build && cp dist/index.html dist/404.html",
+    "predeploy": "npm run build && copy /Y dist\\index.html dist\\404.html",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "path": "^0.12.7",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "scrambow": "^1.8.1"
   },
   "devDependencies": {
+    "@types/node": "^24.9.2",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.2",

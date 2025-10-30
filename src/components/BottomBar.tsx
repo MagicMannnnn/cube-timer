@@ -2,7 +2,7 @@ import React from 'react'
 import { useSettings, defaultSettings } from '@/contexts/SettingsContext'
 import { useSessions } from '@/contexts/SessionsContext'
 import { bestSingle, currentAverage, bestAverage, specFor } from '@/utils/stats'
-import { formatMsPrec, dpFromMode } from '@/utils/format'
+import { dpFromMode } from '@/utils/format'
 import GraphCard from '@/components/GraphCard'
 import GraphModal from '@/components/GraphModal'
 
@@ -32,6 +32,34 @@ export default function BottomBar() {
   const solves = current.solves
   const best = bestSingle(solves)
 
+  // Locale-aware seconds formatter; we’ll truncate first then format.
+  const dpShow = Math.max(2, dp) // force at least 2dp
+  const fmt = React.useMemo(() => {
+    return new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: dpShow,
+    })
+  }, [dpShow])
+
+  // Truncate in **milliseconds** to the desired seconds precision, then format.
+  // Example: dpShow=2 -> stepMs=10ms, 12065ms -> 12060ms -> "12.06"
+  const fmtMs = (ms: number | null | undefined) => {
+    if (ms == null) return '—'
+    const stepMs = Math.pow(10, 3 - dpShow) // 2dp -> 10ms, 3dp -> 1ms
+    const msTrunc = Math.floor(ms / stepMs) * stepMs
+    return fmt.format(msTrunc / 1000)
+  }
+
+  // --- Session Mean (always displayed) ---
+  const sessionMeanMs = React.useMemo(() => {
+    const times = solves
+      .map(s => (s.status === 'DNF' ? null : s.timeMs + (s.status === 'PLUS2' ? 2000 : 0)))
+      .filter((x): x is number => x != null)
+    if (times.length === 0) return null
+    const sum = times.reduce((a, b) => a + b, 0)
+    return sum / times.length
+  }, [solves])
+
   function compute(key: string) {
     if (key === 'BEST') return { cur: null as number | null, best: best }
     const spec = specFor(key)
@@ -56,8 +84,6 @@ export default function BottomBar() {
   const graphs = current.graphs ?? []
 
   // --- Graph rows logic ---
-  // Each row has either one full-width graph or two half-width graphs.
-  // If a row would have a single half-width graph, render it full width.
   type G = typeof graphs[number]
   const rows: G[][] = []
   for (let i = 0; i < graphs.length;) {
@@ -75,23 +101,40 @@ export default function BottomBar() {
 
   return (
     <div className="bottombar">
+      {/* Always-visible Session Mean */}
+      <div className="stat" style={{ order: 0 }}>
+        <div className="k">SESSION MEAN</div>
+        <div className="v">
+          {fmtMs(sessionMeanMs)}
+        </div>
+      </div>
+
+      {/* Ordered stats (draggable) */}
       {data.map(({ k, cur, best }) => {
         const none = cur == null && best == null
         return (
-          <div key={k}
+          <div
+            key={k}
             className="stat"
             draggable
             onDragStart={e => { e.dataTransfer.setData('text/plain', k) }}
             onDragOver={e => e.preventDefault()}
-            onDrop={e => { e.preventDefault(); const from = e.dataTransfer.getData('text/plain'); const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect(); const before = e.clientX < r.left + r.width / 2; onReorder(from, k, before) }}>
+            onDrop={e => {
+              e.preventDefault()
+              const from = e.dataTransfer.getData('text/plain')
+              const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+              const before = e.clientX < r.left + r.width / 2
+              onReorder(from, k, before)
+            }}
+          >
             <div className="k">{k}</div>
             <div className="v" style={{ whiteSpace: 'pre-line' }}>
               {k === 'BEST' ? (
-                best == null ? '—' : formatMsPrec(best, dp)
+                fmtMs(best)
               ) : none ? (
                 '—'
               ) : (
-                `current: ${cur == null ? '—' : formatMsPrec(cur, dp)}\nbest: ${best == null ? '—' : formatMsPrec(best, dp)}`
+                `current: ${fmtMs(cur)}\nbest: ${fmtMs(best)}`
               )}
             </div>
           </div>

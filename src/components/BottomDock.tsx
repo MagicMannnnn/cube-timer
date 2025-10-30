@@ -1,57 +1,81 @@
+
 import React, { useEffect, useRef, useState } from "react";
 
-export default function BottomDock({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [h, setH] = useState<number>(() => {
-    const v = localStorage.getItem("bbarHeight");
-    return v ? parseInt(v, 10) : 160;
-  });
-  const dragging = useRef(false);
-  useEffect(() => {
-    document.documentElement.style.setProperty("--bbar-h", h + "px");
-    localStorage.setItem("bbarHeight", String(h));
-  }, [h]);
-  useEffect(() => {
-    const onMove = (e: MouseEvent | TouchEvent) => {
-      if (!dragging.current) return;
+function getVarPx(name:string, fallback:number){
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const n = parseInt(v || "", 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+function setVarPx(name:string, value:number){
+  document.documentElement.style.setProperty(name, `${Math.round(value)}px`);
+}
 
-      let clientY: number;
-      if (e instanceof TouchEvent) {
-        clientY = e.touches[0].clientY;
-      } else {
-        clientY = e.clientY;
+export default function BottomDock({ children }: { children: React.ReactNode; }) {
+  const minDock = 60;
+  const minSidebar = 60;
+  const initialDock = (()=>{
+    const v = localStorage.getItem("dockH");
+    return v ? parseInt(v,10) : getVarPx("--dock-h",160);
+  })();
+  const [dockH, setDockH] = useState<number>(initialDock);
+  const raf = useRef<number | null>(null);
+  const startY = useRef(0);
+  const startH = useRef(0);
+  const dragging = useRef(false);
+
+  useEffect(()=>{
+    setVarPx("--dock-h", dockH);
+    localStorage.setItem("dockH", String(dockH));
+  },[dockH]);
+
+  const onDown = (e: React.MouseEvent | React.TouchEvent)=>{
+    dragging.current = true;
+    startY.current = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    startH.current = dockH;
+    const onMove = (ev: MouseEvent | TouchEvent)=>{
+      const y = "touches" in ev ? (ev as TouchEvent).touches[0].clientY : (ev as MouseEvent).clientY;
+      const dy = startY.current - y; // drag up => increase height
+      const sidebarH = getVarPx("--sidebar-h", getVarPx("--dock-h",160));
+      const stackMax = Math.round(window.innerHeight * 0.7); // 70% viewport on mobile/compact
+      let nextDock = Math.max(minDock, startH.current + dy);
+
+      // Enforce combined cap; if we exceed, shrink sidebar to compensate
+      if (nextDock + sidebarH > stackMax){
+        const newSidebar = Math.max(minSidebar, stackMax - nextDock);
+        setVarPx("--sidebar-h", newSidebar);
+        localStorage.setItem("sidebarH", String(newSidebar));
       }
-      const y = window.innerHeight - clientY;
-      setH(Math.max(120, Math.min(480, y)));
+      // Also prevent dock from stealing all space when sidebar is at min
+      const currentSidebar = getVarPx("--sidebar-h", 160);
+      if (nextDock + currentSidebar > stackMax){
+        nextDock = Math.max(minDock, stackMax - currentSidebar);
+      }
+
+      if (raf.current) cancelAnimationFrame(raf.current);
+      raf.current = requestAnimationFrame(()=> setDockH(nextDock));
     };
-    const onUp = () => (dragging.current = false);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("touchmove", onMove);
-    window.addEventListener("mouseup", onUp);
-    window.addEventListener("touchend", onUp);
-    return () => {
+    const onUp = ()=>{
+      dragging.current = false;
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchmove", onMove as any);
       window.removeEventListener("mouseup", onUp);
       window.removeEventListener("touchend", onUp);
     };
-  }, []);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("touchmove", onMove as any, {passive:false});
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchend", onUp);
+  };
+
   return (
-    <div className="bottomdock-wrap">
+    <div>
       <div
-        className="bottomdock-resize"
-        onMouseDown={() => {
-          dragging.current = true;
-        }}
-        onTouchStart={() => {
-          dragging.current = true;
-        }}
+        className="resize-handle"
+        onMouseDown={onDown}
+        onTouchStart={onDown}
         title="Drag to resize data area"
       />
-      <div className="bottomdock" style={{ height: `var(--bbar-h, ${h}px)` }}>
+      <div className="bottomdock">
         {children}
       </div>
     </div>

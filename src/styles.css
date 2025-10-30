@@ -1,4 +1,4 @@
-/* === Updated styles.css (sidebar-only scroll, dark scrollbars) === */
+/* === styles.css (clean + working mobile drag) === */
 :root{
   --bg:#0f1115;
   --text:#e7e7e7;
@@ -13,18 +13,21 @@
   --sidebar-w:300px;
 
   /* Scrollbars */
-  --scroll-track: #0d1117;
-  --scroll-thumb: #2a2f3a;
-  --scroll-thumb-hover: #3a4150;
+  --scroll-track:#0d1117;
+  --scroll-thumb:#2a2f3a;
+  --scroll-thumb-hover:#3a4150;
+
+  /* Resizable bottom stack */
+  --dock-h:160px;       /* bottom dock height */
+  --sidebar-h:160px;    /* mobile sidebar height */
+  --stack-max:70vh;     /* shared budget (used by JS logic) */
 }
 
 /* Base */
 *{box-sizing:border-box}
 html,body,#root{height:100%; overflow:hidden}
 body{
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
+  margin:0; background:var(--bg); color:var(--text);
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
 }
 button,input,select{font:inherit;color:inherit}
@@ -33,20 +36,22 @@ a{color:inherit;text-decoration:none}
 /* Layout */
 .app{display:flex; height:100vh}
 
+/* Desktop sidebar (left column) */
 .sidebar{
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow: hidden;
-  width:var(--sidebar-w);
-  background:var(--sidebar-bg);
+  overflow: hidden;              /* list scrolls inside .times */
+  width: var(--sidebar-w);
+  background: var(--sidebar-bg);
   border-right:1px solid var(--border);
-  padding:var(--space);
+  padding: var(--space);
   display:flex;
   flex-direction:column;
-  gap:var(--space);
+  gap: var(--space);
 }
 
+/* Sidebar controls */
 .sidebar .row{display:flex;gap:8px;align-items:center}
 .sidebar select, .sidebar input[type="text"]{
   width:100%;
@@ -66,146 +71,90 @@ a{color:inherit;text-decoration:none}
 .session-header{display:flex;align-items:center;gap:8px}
 .session-delete{margin-left:auto;background:#261d1d}
 
-/* Sidebar solves list scrolls */
+/* Sidebar list scrolls */
 .times{
-  flex:1;
-  min-height: 0;
-  overflow:auto;
-  border:1px solid var(--border);
-  border-radius:12px;
-  padding:6px;
-  background:var(--panel-bg);
+  flex:1; min-height:0; overflow:auto;
+  border:1px solid var(--border); border-radius:12px;
+  padding:6px; background:var(--panel-bg);
 }
 
-/* Dark, clean scrollbars for .times, .bottomdock, .modal-body */
-.times,
-.bottomdock,
-.modal-body{
-  scrollbar-width: thin; /* Firefox */
+/* Scrollbars shared */
+.times, .bottomdock, .modal-body{
+  scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) var(--scroll-track);
 }
 .times::-webkit-scrollbar,
 .bottomdock::-webkit-scrollbar,
-.modal-body::-webkit-scrollbar{
-  width: 10px;
-  height: 10px;
-}
+.modal-body::-webkit-scrollbar{ width:10px; height:10px }
 .times::-webkit-scrollbar-track,
 .bottomdock::-webkit-scrollbar-track,
 .modal-body::-webkit-scrollbar-track{
-  background: var(--scroll-track);
-  border-radius: 999px;
+  background: var(--scroll-track); border-radius:999px;
 }
 .times::-webkit-scrollbar-thumb,
 .bottomdock::-webkit-scrollbar-thumb,
 .modal-body::-webkit-scrollbar-thumb{
-  background: var(--scroll-thumb);
-  border-radius: 999px;
-  border: 2px solid var(--scroll-track);
+  background:var(--scroll-thumb); border-radius:999px; border:2px solid var(--scroll-track);
 }
 .times::-webkit-scrollbar-thumb:hover,
 .bottomdock::-webkit-scrollbar-thumb:hover,
-.modal-body::-webkit-scrollbar-thumb:hover{
-  background: var(--scroll-thumb-hover);
-}
+.modal-body::-webkit-scrollbar-thumb:hover{ background:var(--scroll-thumb-hover) }
 
-.time-item{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:10px;
-  border-radius:10px;
-  cursor:pointer;
-}
-.time-item:hover{background:#161b22}
+/* Time rows */
+.time-item{ display:flex; justify-content:space-between; align-items:center; padding:10px; border-radius:10px; cursor:pointer }
 .time-item:hover{background:rgba(255,255,255,0.03)}
 .time-meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:.9rem}
 .time-index{font-weight:800;font-size:1.15rem;margin-right:6px}
 
-/* Main area never scrolls */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+/* Main area */
+.main{flex:1; display:flex; flex-direction:column; overflow:hidden}
 .topbar{
-  display:flex;
-  justify-content:space-between;
-  padding:var(--space);
-  border-bottom:1px solid var(--border)
+  display:flex; justify-content:space-between;
+  padding:var(--space); border-bottom:1px solid var(--border)
 }
 .icon-btn{
-  background:transparent;
-  border:1px solid var(--border);
-  border-radius:10px;
-  padding:8px 10px;
-  cursor:pointer
+  background:transparent; border:1px solid var(--border);
+  border-radius:10px; padding:8px 10px; cursor:pointer
 }
 
-.timer-wrap{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  padding:var(--space);
-}
+/* Timer area */
+.timer-wrap{ flex:1; display:flex; flex-direction:column; padding:var(--space) }
 .scramble{
-  order:0;
-  color:var(--text);
-  text-align:center;
-  max-width:1400px;
-  line-height:1.4;
-  padding:0 var(--space);
-  margin:8px auto 0;
-  font-weight:600;
+  order:0; color:var(--text); text-align:center;
+  max-width:1400px; line-height:1.4; padding:0 var(--space);
+  margin:8px auto 0; font-weight:600;
   font-size:clamp(1.4rem,3vw,2.2rem);
   word-spacing: clamp(8px, 1.2vw, 18px);
 }
 .timer-center{order:1;flex:1;display:flex;align-items:center;justify-content:center}
 .timer{
   font-size:clamp(3.5rem,10vw,7rem);
-  line-height:1;
-  letter-spacing:1px;
-  color:var(--timer-color);
-  user-select:none;
-  transition:color .15s ease
+  line-height:1; letter-spacing:1px; color:var(--timer-color);
+  user-select:none; transition:color .15s ease
 }
 .timer.holding{color:#f59e0b}
 .timer.ready{color:#22c55e}
 
-/* Stats / Bottom bar */
+/* Bottom bar */
 .bottombar{
-  min-height:140px;
-  border-top:1px solid var(--border);
-  display:flex;
-  align-items:stretch;
-  justify-content:flex-start;
-  padding:12px var(--space);
-  gap:18px;
-  flex-wrap:wrap
+  min-height:140px; border-top:1px solid var(--border);
+  display:flex; align-items:stretch; justify-content:flex-start;
+  padding:12px var(--space); gap:18px; flex-wrap:wrap
 }
 .bottombar .stat{
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:14px 18px;
-  min-width:180px;
-  flex:1 1 260px;
-  background:var(--panel-bg);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  text-align:center
+  border:1px solid var(--border); border-radius:14px; padding:14px 18px;
+  min-width:180px; flex:1 1 260px; background:var(--panel-bg);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center
 }
-.bottombar .stat .k{font-size:1rem;color:var(--muted);text-align:center}
-.bottombar .stat .v{font-weight:700;font-size:1.25rem;line-height:1.4;text-align:center}
+.bottombar .stat .k{font-size:1rem;color:var(--muted)}
+.bottombar .stat .v{font-weight:700;font-size:1.25rem;line-height:1.4}
 
+/* Modal bits */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center}
 .modal{
-  background:var(--panel-bg);
-  border:1px solid var(--border);
-  border-radius:14px;
-  max-width:520px;
-  width:92%;
-  padding:16px;
-  display:flex;
-  flex-direction:column;
-  gap:12px
+  background:var(--panel-bg); border:1px solid var(--border); border-radius:14px;
+  max-width:520px; width:92%; padding:16px; display:flex; flex-direction:column; gap:12px;
+  z-index: 100000;
 }
 .modal .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .badge{border:1px solid var(--border);padding:6px 10px;border-radius:10px;font-size:.9rem;background:var(--panel-bg);color:#fff;cursor:pointer}
@@ -213,32 +162,7 @@ a{color:inherit;text-decoration:none}
 .status-OK{color:#8dffb0}
 .status-PLUS2{color:#ffd27f}
 .status-DNF{color:#ff8f8f}
-
-/* Responsive */
-@media (max-width:900px){
-  :root{--sidebar-w:220px}
-  .timer{font-size:4rem}
-}
-@media (max-width:680px){
-  .app{flex-direction:column}
-  .sidebar{width:100%;border-right:none;border-bottom:1px solid var(--border);order:1;height:auto;position:static}
-  .main{order:0}
-}
-
-/* Form elements in modals */
-.modal input[type="number"],
-.modal input[type="text"],
-.modal select,
-.modal textarea{
-  background:#4b5563;
-  color:#fff;
-  border:1px solid #4b5563;
-  border-radius:10px;
-  padding:10px;
-}
-.modal label{color:var(--text)}
-
-/* Data / Settings UI */
+.modal-body{min-height:420px;max-height:60vh;overflow:auto}
 .tabs{display:flex;gap:6px}
 .tab{padding:8px 12px;border:1px solid var(--border);background:var(--panel-bg);color:#fff;border-radius:10px;cursor:pointer}
 .tab.active{outline:2px solid #3a7afe}
@@ -246,7 +170,6 @@ a{color:inherit;text-decoration:none}
 .data-row{display:flex;align-items:center;gap:8px;background:var(--panel-bg);border:1px solid var(--border);border-radius:10px;padding:8px}
 .data-row .abbr{font-weight:600}
 .data-row .qm{margin-left:auto;border:1px solid var(--border);border-radius:999px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;opacity:.8;cursor:help;background:var(--panel-bg)}
-
 .modal-wide{max-width:1056px}
 .data-grid.wide{grid-template-columns:1fr 1fr}
 .data-row .spacer{flex:1}
@@ -255,182 +178,137 @@ a{color:inherit;text-decoration:none}
 .stat[draggable]{cursor:grab}
 .stat[draggable]:active{cursor:grabbing}
 
-/* Modal content scroll */
-.modal-body{min-height:420px;max-height:60vh;overflow:auto}
-
-/* Bottom dock (graph area resizer) */
-.bottomdock-wrap{width:100%;}
-.bottomdock-resize{
-  height:6px;
+/* Bottom dock (graph area) */
+.bottomdock-wrap{width:100%}
+.resize-handle{
+  height:12px;                 /* bigger finger target */
   cursor:ns-resize;
-  background:linear-gradient(to right, transparent 0, rgba(255,255,255,.15) 40%, rgba(255,255,255,.15) 60%, transparent 100%)
+  background:linear-gradient(to right, transparent 0, rgba(255,255,255,.15) 50%, transparent 100%);
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  user-select:none; -webkit-user-select:none;
+  touch-action:none;           /* allow JS to capture touchmove */
 }
 .bottomdock{
-  border-top:1px solid var(--border);
-  padding:12px var(--space);
+  height:var(--dock-h);
+  min-height:60px;
   overflow:auto;
-  background:transparent
-}
-.graph-card{
-  position:relative;
-  border:1px solid var(--border);
   background:var(--panel-bg);
-  border-radius:14px;
-  padding:8px 12px;
-  min-width:280px;
-  flex:1 1 520px
+  border:1px solid var(--border);
+  border-radius:12px 12px 0 0;
 }
-.graph-title{font-weight:700;margin-bottom:4px}
-.graph-meta{position:absolute;top:8px;right:12px;opacity:.6;font-size:.9rem}
 
-/* Settings header */
-.desc{opacity:.75;font-size:.9rem}
-.settings-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:8px;
-  height:52px;
-  padding-bottom:4px;
-  border-bottom:1px solid var(--border);
-  flex-wrap:nowrap
+/* Responsive */
+@media (max-width:900px){
+  :root{--sidebar-w:220px}
+  .timer{font-size:4rem}
 }
-.settings-header .tabs{display:flex;gap:6px}
-.settings-header .tab{height:36px;display:inline-flex;align-items:center}
-.graph-row{ width:100%; display:flex; gap:18px; margin-bottom:18px }
-.graph-row:last-child{ margin-bottom:0 }
 
-
-/* === Improved mobile responsiveness === */
-@media (max-width: 680px) {
-  .app {
+/* ===== MOBILE LAYOUT & RESIZING (<=680px) ===== */
+@media (max-width:680px){
+  .app{
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
   }
 
-  /* Sidebar sits on top, scrolls internally if content too long */
-  .sidebar {
+  .sidebar{
+    /* CRITICAL: override desktop height so max-height works */
+    height: auto;                 /* <— this unlocks --sidebar-h */
+    max-height: var(--sidebar-h); /* driven by your drag JS */
+    min-height: 60px;
+
+    position: relative;
+    order: 1;                     /* below the dock */
     width: 100%;
-    max-height: 45vh; /* keeps it from overtaking the screen */
-    overflow-y: auto;
+    overflow: hidden;             /* internal areas scroll */
     border-right: none;
     border-bottom: 1px solid var(--border);
-    position: relative;
-    order: 1;
-    z-index: 2;
+    padding: 0;                   /* keep handle flush at top */
+    z-index: 2;                   /* above the dock */
   }
 
-  /* Sidebar scrollbar styling (reuse same variables) */
-  .sidebar {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scroll-thumb) var(--scroll-track);
-  }
-  .sidebar::-webkit-scrollbar {
-    width: 8px;
-  }
-  .sidebar::-webkit-scrollbar-thumb {
-    background: var(--scroll-thumb);
-    border-radius: 999px;
+  /* Sticky, easy-to-grab handle that captures touch */
+  .sidebar-resize{
+    position: sticky;
+    top: 0; left: 0; right: 0;
+    height: 14px;                 /* make it grabbable */
+    cursor: ns-resize;
+    background: linear-gradient(
+      to right,
+      transparent 0,
+      rgba(255,255,255,.15) 50%,
+      transparent 100%
+    );
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+    user-select: none; -webkit-user-select: none;
+    touch-action: none;           /* REQUIRED for smooth touch-drag */
   }
 
-  /* Main content below, fills the rest of viewport */
-  .main {
-    flex: 1;
+  .main{
     order: 0;
+    flex: 1;
     overflow: hidden;
     display: flex;
     flex-direction: column;
   }
 
-  .timer-wrap {
-    flex: 1;
-    overflow-y: auto;
-    padding: var(--space);
-  }
-
-  .bottombar {
-    flex-wrap: wrap;
-    padding: 10px;
-  }
-
-  /* Optional: make sidebar collapsible */
-  .sidebar.collapsed {
-    max-height: 80px;
-    overflow: hidden;
-    border-bottom: none;
+  .bottomdock{
+    position: relative;           /* create stacking context */
+    z-index: 1;                   /* below the sidebar/handle */
+    height: var(--dock-h);
+    min-height: 60px;
   }
 }
 
-/* === Mobile sidebar resizing (similar to bottomdock) === */
-@media (max-width: 680px) {
-  .sidebar {
+/* ===== FORCE-VISIBLE, GRABBABLE SIDEBAR HANDLE ON MOBILE ===== */
+@media (max-width:680px){
+  /* 1) Let --sidebar-h actually control height */
+  .sidebar{
+    height: auto !important;             /* overrides desktop 100vh */
+    max-height: var(--sidebar-h, 160px);
+    min-height: 60px;
+    overflow: hidden;                     /* internal areas scroll */
+    padding: 0;                           /* handle sits flush at top */
     position: relative;
+    z-index: 2;
     width: 100%;
-    max-height: 50vh; /* initial height */
-    overflow-y: auto;
+    border-right: none;
     border-bottom: 1px solid var(--border);
-    transition: max-height 0.1s ease-out;
   }
 
-  /* Drag handle at top */
-  .sidebar-resize {
-    height: 6px;
+  /* 2) Make the handle obvious & easy to grab */
+  .sidebar-resize{
+    display: block;
+    height: 12px;                         /* <-- bigger finger target */
+    min-height: 12px;
     cursor: ns-resize;
+    padding-bottom: 4px;
     background: linear-gradient(
       to right,
       transparent 0,
-      rgba(255, 255, 255, 0.15) 40%,
-      rgba(255, 255, 255, 0.15) 60%,
+      rgba(255,255,255,.22) 50%,
       transparent 100%
     );
-    position: sticky;
-    border-radius: 4px;
-  }
-
-}
-
-
-@media (max-width: 680px) {
-  .sidebar {
-    position: relative;
-    width: 100%;
-    max-height: 50vh;
-    overflow-y: auto;
     border-bottom: 1px solid var(--border);
-    transition: max-height 0.25s ease;
-  }
-
-  .sidebar.collapsed {
-    max-height: 70px;
-    overflow: hidden;
-    position: relative;
-  }
-
-  /* Always keep the resize bar visible at the top */
-  .sidebar-resize {
-    height: 6px;
-    cursor: ns-resize;
-    background: linear-gradient(
-      to right,
-      transparent 0,
-      rgba(255, 255, 255, 0.15) 40%,
-      rgba(255, 255, 255, 0.15) 60%,
-      transparent 100%
-    );
-    position: sticky; /* key part */
-    top: 0;
-    left: 0;
-    right: 0;
+    user-select: none; -webkit-user-select: none;
+    touch-action: none;                   /* critical for touch-drag */
+    position: relative;                   /* no sticky needed */
     z-index: 10;
   }
 
-  /* In collapsed state, make sure it's still visible */
-  .sidebar.collapsed .sidebar-resize {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 10px; /* make it a bit larger for easier tapping */
+  /* 3) Put padding on inner content so it doesn't overlap handle */
+  .sidebar > .session-header,
+  .sidebar > .times{
+    padding-left: var(--space);
+    padding-right: var(--space);
   }
+  .sidebar > .session-header{ padding-top: var(--space); }
 }
+
+/* Optional DEBUG: uncomment to verify it's visible, then remove
+.sidebar-resize{ background: rgba(255,0,0,.35) !important; }
+*/
+
+
