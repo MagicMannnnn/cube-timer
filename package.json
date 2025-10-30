@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host",
     "preview": "vite preview",
-    "build": "set VITE_BASE='/cube-timer/' && vite build",
+    "build": "set VITE_BASE=/cube-timer/ && vite build",
     "predeploy": "npm run build && copy /Y dist\\index.html dist\\404.html",
     "deploy": "gh-pages -d dist"
   },
