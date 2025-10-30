@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect } from 'react'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 
-export type PrecisionMode = '3dp'|'2dp'|'1dp'|'seconds'|'no-live'
-export type DataShown = { mo3:boolean; ao5:boolean; ao12:boolean; ao25:boolean; ao50:boolean; ao100:boolean }
+export type PrecisionMode = '3dp'|'2dp'|'1dp'|'seconds'|'no-live'|'typing'
+export type DataShown = { mo3:boolean; ao5:boolean; ao12:boolean; ao25:boolean; ao50:boolean; ao100:boolean; predict: boolean }
 export type Settings = {
   precision:PrecisionMode
   holdToStartMs:number
@@ -30,8 +30,8 @@ export const defaultSettings:Settings = {
   textColor:'#e7e7e7',
   mutedColor:'#9aa1a9',
   multiphase:false,
-  dataShown:{ mo3:true, ao5:true, ao12:true, ao25:false, ao50:false, ao100:false },
-  dataOrder:['BEST','MO3','AO5','AO12','AO25','AO50','AO100'],
+  dataShown:{ mo3:true, ao5:true, ao12:true, ao25:false, ao50:false, ao100:false, predict:true },
+  dataOrder:['BEST','MO3','AO5','AO12','AO25','AO50','AO100', 'predict'],
   sidebarGradient:true,
   event:'333'
 }
