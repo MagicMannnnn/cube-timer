@@ -40,7 +40,7 @@ export function useTimer({ holdToStartMs, phases, onStop }: UseTimerOpts) {
     if (!startRef.current) return;
     const total = performance.now() - startRef.current;
 
-    // ⬅️ ensure the display shows the same number you save
+    // Ensure the on-screen value matches what we save
     setElapsed(total);
 
     setRunning(false);
@@ -86,15 +86,46 @@ export function useTimer({ holdToStartMs, phases, onStop }: UseTimerOpts) {
     holdStartRef.current = null;
   }, [running, ready, start, stopOrSplit]);
 
-  // Keyboard support
+  // Keyboard support:
+  // - While running: ANY keydown stops/splits (ignore auto-repeat)
+  // - While idle: Space = hold-to-start (keydown), release Space = start (keyup)
   useEffect(() => {
+    const shouldIgnore = (el: EventTarget | null) => {
+      if (!(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      return (
+        el.isContentEditable ||
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        tag === "BUTTON"
+      );
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
+      if (shouldIgnore(e.target)) return;
+
+      if (running) {
+        if (!e.repeat) {
+          e.preventDefault();
+          stopOrSplit();
+        }
+        return;
+      }
+
+      // Not running: begin hold on Space
       if (e.code === "Space") {
         e.preventDefault();
         handleHoldStart();
       }
     };
+
     const onKeyUp = (e: KeyboardEvent) => {
+      if (shouldIgnore(e.target)) return;
+
+      if (running) return; // already handled on keydown
+
+      // Not running: end hold on Space (may start if ready)
       if (e.code === "Space") {
         e.preventDefault();
         handleHoldEnd();
@@ -107,7 +138,7 @@ export function useTimer({ holdToStartMs, phases, onStop }: UseTimerOpts) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [handleHoldStart, handleHoldEnd]);
+  }, [running, stopOrSplit, handleHoldStart, handleHoldEnd]);
 
   // Interval to check if hold duration has been reached
   useEffect(() => {
