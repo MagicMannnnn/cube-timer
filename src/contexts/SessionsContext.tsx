@@ -18,7 +18,7 @@ export type SessionTimer = {
   phases: number
 }
 
-export type GraphCfg = { id: string; last: number; half?: boolean; height?: number }
+export type GraphCfg = { id: string; last: number; half?: boolean; height?: number, type?: number; }
 
 export type Session = {
   id:string

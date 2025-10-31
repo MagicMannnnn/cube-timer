@@ -4,7 +4,7 @@ export default function GraphModal({open,onClose,children}:{open:boolean,onClose
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal-wide" onClick={e=>e.stopPropagation()}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div className="modal-wide" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <strong>Graph</strong>
           <button className="icon-btn" onClick={onClose}>Close</button>
         </div>

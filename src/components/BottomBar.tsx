@@ -11,16 +11,6 @@ import { dpFromMode } from "@/utils/format";
 import GraphCard from "@/components/GraphCard";
 import GraphModal from "@/components/GraphModal";
 
-const ALL_KEYS = [
-  "BEST",
-  "MO3",
-  "AO5",
-  "AO12",
-  "AO25",
-  "AO50",
-  "AO100",
-] as const;
-
 export default function BottomBar() {
   const { settings, setSettings } = useSettings();
   const { current, updateSession } = useSessions();
@@ -30,11 +20,12 @@ export default function BottomBar() {
     ? current.dataShown ?? defaultSettings.dataShown
     : settings.dataShown;
   const showMap = baseShown;
+
   const baseOrder = usingSession
     ? current.dataOrder ?? defaultSettings.dataOrder
     : settings.dataOrder ?? defaultSettings.dataOrder;
 
-  // filter only toggled stats
+  // Filter only toggled stats
   const items = baseOrder.filter((k) => {
     if (k === "BEST") return true;
     if (k === "MO3") return !!showMap.mo3;
@@ -50,7 +41,7 @@ export default function BottomBar() {
   const solves = current.solves;
   const best = bestSingle(solves);
 
-  // format seconds with truncation
+  // Formatter with truncation to at least 2dp
   const dpShow = Math.max(2, dp);
   const fmt = React.useMemo(() => {
     return new Intl.NumberFormat(undefined, {
@@ -66,17 +57,16 @@ export default function BottomBar() {
     return fmt.format(msTrunc / 1000);
   };
 
-  // effective ms adds plus two ignores dnf
+  // Effective ms (+2, skip DNF)
   const msEffective = (s: (typeof solves)[number]) =>
     s.status === "DNF" ? null : s.timeMs + (s.status === "PLUS2" ? 2000 : 0);
 
-  // helpers for prediction
+  // --- AO5 prediction helpers ---
   const ceil1dp = (x: number) => Math.ceil(x * 10) / 10;
   const round1dp = (x: number) => Math.round(x * 10) / 10;
   const uniq1dp = (arr: number[]) =>
     Array.from(new Set(arr.map((v) => v.toFixed(1)))).map((s) => Number(s));
 
-  // pick targets near min
   function pickTargetsSec(minSec: number, maxSec: number): number[] {
     const start = ceil1dp(minSec);
     const end = Math.max(start + 0.4, ceil1dp(maxSec));
@@ -109,32 +99,41 @@ export default function BottomBar() {
     if (last4.length < 4) return "Need 4 valid solves";
     const sorted = [...last4].sort((a, b) => a - b);
 
-    const minAO5 = (sorted[0] + sorted[1] + sorted[2]) / 3;
-    const maxAO5 = (sorted[1] + sorted[2] + sorted[3]) / 3;
+    const minAO5 = (sorted[0] + sorted[1] + sorted[2]) / 3; // ms
+    const maxAO5 = (sorted[1] + sorted[2] + sorted[3]) / 3; // ms
 
     const possible: string = `Possible: ${fmtMs(minAO5)}–${fmtMs(maxAO5)}`;
 
-    const minNeededMs = Math.max(0, Math.floor(minAO5 * 3 - sorted[1] - sorted[2]));
+    const minNeededMs = Math.max(
+      0,
+      Math.floor(minAO5 * 3 - sorted[1] - sorted[2])
+    );
     const bestNeeded = `=${fmtMs(minAO5)} -> ${fmtMs(minNeededMs)}`;
 
     const targetsSec = pickTargetsSec(minAO5 / 1000, maxAO5 / 1000);
 
     let subXs = "";
     for (const tSec of targetsSec) {
-      const needMs = Math.max(0, Math.floor(tSec * 1000 * 3 - sorted[1] - sorted[2]));
-      subXs += `\nSub-${fmtMs(tSec * 1000)} -> ${needMs < sorted[3] ? fmtMs(needMs) : '-'}`;
+      const needMs = Math.max(
+        0,
+        Math.floor(tSec * 1000 * 3 - sorted[1] - sorted[2])
+      );
+      // show '-' if the needed time would be slower than your current worst in the 4
+      subXs += `\nSub-${fmtMs(tSec * 1000)} -> ${
+        needMs < sorted[3] ? fmtMs(needMs) : "-"
+      }`;
     }
 
     return `${possible}\n${bestNeeded}${subXs}`;
   }
 
-  // last four effective times newest first
+  // Last 4 effective (newest first)
   const last4Effective: number[] = React.useMemo(() => {
     const eff = solves.map(msEffective).filter((x): x is number => x != null);
     return eff.slice(0, 4);
   }, [solves]);
 
-  // session mean
+  // Session mean (always shown)
   const sessionMeanMs = React.useMemo(() => {
     const times = solves.map(msEffective).filter((x): x is number => x != null);
     if (times.length === 0) return null;
@@ -165,9 +164,16 @@ export default function BottomBar() {
     else setSettings((s) => ({ ...s, dataOrder: arr }));
   };
 
-  const graphs = current.graphs ?? [];
+  // Ensure 'type' is available locally without depending on external typing
+  const graphs = (current.graphs ?? []) as Array<{
+    id: string;
+    last: number;
+    half?: boolean;
+    height?: number;
+    type?: number;
+  }>;
 
-  // graph rows
+  // Group into rows (kept as-is), but width now respects g.half directly
   type G = (typeof graphs)[number];
   const rows: G[][] = [];
   for (let i = 0; i < graphs.length; ) {
@@ -191,13 +197,13 @@ export default function BottomBar() {
 
   return (
     <div className="bottombar">
-      {/* session mean */}
+      {/* Session mean */}
       <div className="stat" style={{ order: 0 }}>
         <div className="k">SESSION MEAN</div>
         <div className="v">{fmtMs(sessionMeanMs)}</div>
       </div>
 
-      {/* predict ao5 */}
+      {/* AO5 Prediction (toggle in Data settings) */}
       {showMap?.predict && (
         <div className="stat">
           <div className="k">PREDICT (AO5)</div>
@@ -209,7 +215,7 @@ export default function BottomBar() {
         </div>
       )}
 
-      {/* ordered stats */}
+      {/* Ordered stats */}
       {data.map(({ k, cur, best }) => {
         const none = cur == null && best == null;
         return (
@@ -243,23 +249,34 @@ export default function BottomBar() {
         );
       })}
 
+      {/* New line before graphs */}
       <div style={{ flexBasis: "100%", height: 0 }} />
 
-      {/* graph rows */}
+      {/* Graph rows */}
       {rows.map((row, ri) => (
         <div
           key={`row-${ri}`}
           className="graph-row"
-          style={{ flex: "1 1 100%", display: "flex", gap: 18, width: "100%" }}
+          style={{
+            flex: "1 1 100%",
+            display: "flex",
+            gap: 18,
+            width: "100%",
+            // flexWrap isn't required; leave default (nowrap) so two halves stay on one line
+          }}
         >
           {row.map((g) => {
-            const half = row.length === 2;
+            // ✅ Respect the item's own half flag
+            const half = !!g.half;
+
             return (
               <div
                 key={`${g.id}-${g.height ?? 120}-${g.last}-${half ? "h" : "f"}`}
                 style={{
-                  flex: half ? "1 1 50%" : "1 1 100%",
-                  minWidth: half ? "320px" : "100%",
+                  // ✅ Account for the 18px gap so two halves fit exactly on one row
+                  flex: half ? "1 1 calc(50% - 9px)" : "1 1 100%",
+                  // (Optional) lower the min width a bit to avoid forced wrapping on narrower layouts
+                  minWidth: half ? "280px" : "100%",
                 }}
               >
                 <GraphCard
@@ -268,6 +285,7 @@ export default function BottomBar() {
                   last={g.last}
                   dp={dp}
                   height={g.height ?? 120}
+                  type={g.type ?? 1}
                   onClick={() => setEnlarge(g.id)}
                 />
               </div>
@@ -287,7 +305,8 @@ export default function BottomBar() {
                 solves={solves}
                 last={g.last}
                 dp={dp}
-                height={Math.max(260, (g.height ?? 120) + 220)}
+                height={120}
+                type={g.type ?? 1}
               />
             );
           })()}

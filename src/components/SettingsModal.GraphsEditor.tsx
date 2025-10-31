@@ -24,6 +24,22 @@ export default function GraphsEditor(){
     updateSession(current.id, { graphs: arr })
   }
 
+  // Compact input styling to match "typing mode" look without increasing size.
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--panel-bg)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    padding: '8px 10px',
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: '0.95rem',
+    lineHeight: 1.2,
+    width: '100%',
+    maxWidth: 110,
+    appearance: 'textfield' as any, // keep number input compact
+  }
+
   return (
     <div className="data-grid wide">
       <div className="row" style={{gap:8}}>
@@ -38,18 +54,68 @@ export default function GraphsEditor(){
              draggable
              onDragStart={e=>{ e.dataTransfer.setData('text/plain', g.id) }}
              onDragOver={e=>e.preventDefault()}
-             onDrop={e=>{ e.preventDefault(); const from = e.dataTransfer.getData('text/plain'); const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect(); const before = e.clientX < r.left + r.width/2; reorder(from, g.id, before) }}>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr auto',gap:8,alignItems:'center',width:'100%'}}>
-            <div>Last solves: <input type="number" min={1} value={g.last} onChange={e=>set(g.id,{last: Math.max(1, Number(e.target.value)||1)})} /></div>
-            <div><button className="icon-btn" onClick={()=>set(g.id,{half: !g.half})}>{g.half? 'Full width' : 'Half width'}</button></div>
-            <div>Height: <select value={g.height ?? 120} onChange={e=>set(g.id,{height: Number(e.target.value)||120})}>
-              <option value={40}>Small</option>
-              <option value={60}>Medium</option>
-              <option value={80}>Large</option>
-              <option value={100}>X-Large</option>
-            </select></div>
+             onDrop={e=>{
+               e.preventDefault()
+               const from = e.dataTransfer.getData('text/plain')
+               const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+               const before = e.clientX < r.left + r.width/2
+               reorder(from, g.id, before)
+             }}>
+          <div
+            style={{
+              display:'grid',
+              gridTemplateColumns:'1fr 1fr 1fr auto',
+              gap:8,
+              alignItems:'center',
+              width:'100%'
+            }}
+          >
+            <div style={{display:'flex', alignItems:'center', gap:8}}>
+              <label style={{whiteSpace:'nowrap'}}>Last solves:</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                step={1}
+                min={1}
+                value={g.last}
+                onChange={e=> set(g.id,{ last: Math.max(1, Number(e.target.value)||1) })}
+                // visually match "typing input" without changing size
+                className="typing-input"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <button className="icon-btn" onClick={()=>set(g.id,{half: !g.half})}>
+                {g.half? 'Full width' : 'Half width'}
+              </button>
+            </div>
+
+            <div>
+              Height:{' '}
+              <select
+                value={g.height ?? 120}
+                onChange={e=>set(g.id,{height: Number(e.target.value)||120})}
+                // keep select visually consistent
+                style={{
+                  background: 'var(--panel-bg)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10,
+                  padding: '8px 10px',
+                }}
+              >
+                <option value={40}>Small</option>
+                <option value={60}>Medium</option>
+                <option value={80}>Large</option>
+                <option value={100}>X-Large</option>
+              </select>
+            </div>
+
             {/* Per-row remove */}
-            <div><button className="icon-btn" title="Remove graph" onClick={()=>remove(g.id)}>×</button></div>
+            <div>
+              <button className="icon-btn" title="Remove graph" onClick={()=>remove(g.id)}>×</button>
+            </div>
           </div>
         </div>
       ))}
