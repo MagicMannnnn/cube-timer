@@ -25,7 +25,6 @@ export default function BottomBar() {
     ? current.dataOrder ?? defaultSettings.dataOrder
     : settings.dataOrder ?? defaultSettings.dataOrder;
 
-  // Filter only toggled stats
   const items = baseOrder.filter((k) => {
     if (k === "BEST") return true;
     if (k === "MO3") return !!showMap.mo3;
@@ -41,7 +40,6 @@ export default function BottomBar() {
   const solves = current.solves;
   const best = bestSingle(solves);
 
-  // Formatter with truncation to at least 2dp
   const dpShow = Math.max(2, dp);
   const fmt = React.useMemo(() => {
     return new Intl.NumberFormat(undefined, {
@@ -57,11 +55,9 @@ export default function BottomBar() {
     return fmt.format(msTrunc / 1000);
   };
 
-  // Effective ms (+2, skip DNF)
   const msEffective = (s: (typeof solves)[number]) =>
     s.status === "DNF" ? null : s.timeMs + (s.status === "PLUS2" ? 2000 : 0);
 
-  // --- AO5 prediction helpers ---
   const ceil1dp = (x: number) => Math.ceil(x * 10) / 10;
   const round1dp = (x: number) => Math.round(x * 10) / 10;
   const uniq1dp = (arr: number[]) =>
@@ -99,8 +95,8 @@ export default function BottomBar() {
     if (last4.length < 4) return "Need 4 valid solves";
     const sorted = [...last4].sort((a, b) => a - b);
 
-    const minAO5 = (sorted[0] + sorted[1] + sorted[2]) / 3; // ms
-    const maxAO5 = (sorted[1] + sorted[2] + sorted[3]) / 3; // ms
+    const minAO5 = (sorted[0] + sorted[1] + sorted[2]) / 3;
+    const maxAO5 = (sorted[1] + sorted[2] + sorted[3]) / 3;
 
     const possible: string = `Possible: ${fmtMs(minAO5)}–${fmtMs(maxAO5)}`;
 
@@ -118,7 +114,6 @@ export default function BottomBar() {
         0,
         Math.floor(tSec * 1000 * 3 - sorted[1] - sorted[2])
       );
-      // show '-' if the needed time would be slower than your current worst in the 4
       subXs += `\nSub-${fmtMs(tSec * 1000)} -> ${
         needMs < sorted[3] ? fmtMs(needMs) : "-"
       }`;
@@ -127,13 +122,11 @@ export default function BottomBar() {
     return `${possible}\n${bestNeeded}${subXs}`;
   }
 
-  // Last 4 effective (newest first)
   const last4Effective: number[] = React.useMemo(() => {
     const eff = solves.map(msEffective).filter((x): x is number => x != null);
     return eff.slice(0, 4);
   }, [solves]);
 
-  // Session mean (always shown)
   const sessionMeanMs = React.useMemo(() => {
     const times = solves.map(msEffective).filter((x): x is number => x != null);
     if (times.length === 0) return null;
@@ -164,7 +157,6 @@ export default function BottomBar() {
     else setSettings((s) => ({ ...s, dataOrder: arr }));
   };
 
-  // Ensure 'type' is available locally without depending on external typing
   const graphs = (current.graphs ?? []) as Array<{
     id: string;
     last: number;
@@ -173,7 +165,6 @@ export default function BottomBar() {
     type?: number;
   }>;
 
-  // Group into rows (kept as-is), but width now respects g.half directly
   type G = (typeof graphs)[number];
   const rows: G[][] = [];
   for (let i = 0; i < graphs.length; ) {
@@ -193,17 +184,43 @@ export default function BottomBar() {
     }
   }
 
+  // Custom average (N, drop 5%) from session or global settings
+  const effCustomN =
+    usingSession
+      ? (current as any).customAvgN ?? (settings as any).customAvgN ?? 25
+      : (settings as any).customAvgN ?? 25;
+  const effCustomEnabled =
+    usingSession
+      ? (current as any).customAvgEnabled ?? false
+      : (settings as any).customAvgEnabled ?? false;
+
   const [enlarge, setEnlarge] = React.useState<string | null>(null);
 
   return (
     <div className="bottombar">
-      {/* Session mean */}
       <div className="stat" style={{ order: 0 }}>
         <div className="k">SESSION MEAN</div>
         <div className="v">{fmtMs(sessionMeanMs)}</div>
       </div>
 
-      {/* AO5 Prediction (toggle in Data settings) */}
+      {effCustomEnabled && (
+        <div className="stat">
+          <div className="k">{`CA${effCustomN} (5% drop)`}</div>
+          <div className="v" style={{ whiteSpace: "pre-line" }}>
+            {(() => {
+              const n = Math.max(3, effCustomN | 0);
+              const drop = Math.floor(n * 0.05);
+              const cur = currentAverage(solves, n, drop);
+              const bestA = bestAverage(solves, n, drop);
+              const none = cur == null && bestA == null;
+              return none
+                ? "—"
+                : `current: ${fmtMs(cur)}\nbest: ${fmtMs(bestA)}`;
+            })()}
+          </div>
+        </div>
+      )}
+
       {showMap?.predict && (
         <div className="stat">
           <div className="k">PREDICT (AO5)</div>
@@ -215,7 +232,6 @@ export default function BottomBar() {
         </div>
       )}
 
-      {/* Ordered stats */}
       {data.map(({ k, cur, best }) => {
         const none = cur == null && best == null;
         return (
@@ -249,10 +265,8 @@ export default function BottomBar() {
         );
       })}
 
-      {/* New line before graphs */}
       <div style={{ flexBasis: "100%", height: 0 }} />
 
-      {/* Graph rows */}
       {rows.map((row, ri) => (
         <div
           key={`row-${ri}`}
@@ -262,20 +276,15 @@ export default function BottomBar() {
             display: "flex",
             gap: 18,
             width: "100%",
-            // flexWrap isn't required; leave default (nowrap) so two halves stay on one line
           }}
         >
           {row.map((g) => {
-            // ✅ Respect the item's own half flag
             const half = !!g.half;
-
             return (
               <div
                 key={`${g.id}-${g.height ?? 120}-${g.last}-${half ? "h" : "f"}`}
                 style={{
-                  // ✅ Account for the 18px gap so two halves fit exactly on one row
                   flex: half ? "1 1 calc(50% - 9px)" : "1 1 100%",
-                  // (Optional) lower the min width a bit to avoid forced wrapping on narrower layouts
                   minWidth: half ? "280px" : "100%",
                 }}
               >

@@ -18,7 +18,7 @@ export type SessionTimer = {
   phases: number
 }
 
-export type GraphCfg = { id: string; last: number; half?: boolean; height?: number, type?: number; }
+export type GraphCfg = { id: string; last: number; half?: boolean; height?: number; type?: number }
 
 export type Session = {
   id:string
@@ -30,6 +30,7 @@ export type Session = {
   useSessionTimer?: boolean
   sessionTimer?: SessionTimer
   graphs?: GraphCfg[]
+  customAvgN?: number
 }
 
 type Ctx = {
@@ -51,38 +52,34 @@ const SessionsContext = createContext<Ctx>(null as unknown as Ctx)
 
 function uid(){ return Math.random().toString(36).slice(2,10) }
 
-// Build the example session on first run
 function makeExampleSession(): Session {
-  const now = Date.now();
-  const solves: Solve[] = [];
+  const now = Date.now()
+  const solves: Solve[] = []
 
-  // Outlier among the most recent solves (newest)
-  solves.push({ id: 's01', timeMs: 18000, scramble: "R2 U2 L2 D2 F2 B2", status: 'OK', createdAt: now });
+  solves.push({ id: 's01', timeMs: 18000, scramble: "R2 U2 L2 D2 F2 B2", status: 'OK', createdAt: now })
 
-  // Next 45 solves between 10–13s
   for (let i = 1; i <= 45; i++) {
-    const ms = Math.floor(10000 + Math.random() * 3000);
+    const ms = Math.floor(10000 + Math.random() * 3000)
     solves.push({
       id: `s${String(i + 1).padStart(2,'0')}`,
       timeMs: ms,
       scramble: "R U R' U' F2 L U2",
       status: 'OK',
-      createdAt: now - i * 300000, // 5 minutes apart
-    });
+      createdAt: now - i * 300000,
+    })
   }
 
-  // Four older outliers
-  const outliers = [8900, 15000, 16500, 21000];
+  const outliers = [8900, 15000, 16500, 21000]
   outliers.forEach((ms, j) => {
-    const idx = 46 + j + 1; // s47..s50
+    const idx = 46 + j + 1
     solves.push({
       id: `s${String(idx).padStart(2,'0')}`,
       timeMs: ms,
       scramble: "R2 U2 L2 D2 F2 B2",
       status: 'OK',
       createdAt: now - (46 + j) * 300000,
-    });
-  });
+    })
+  })
 
   return {
     id: 'example',
@@ -90,18 +87,23 @@ function makeExampleSession(): Session {
     solves,
     useSessionData: false,
     useSessionTimer: false,
-    graphs: [{ id:'g1', last:50, half:true, height:80 }, { id:'g2', last:20, half:true, height:80 }],
-  };
+    graphs: [
+      { id:'g1', last:50, half:true, height:80, type:1 },
+      { id:'g2', last:20, half:true, height:80, type:1 }
+    ],
+    customAvgN: 25,
+  }
 }
+
 export function SessionsProvider({children}:{children:React.ReactNode}){
   const initialSessions: Session[] = [ makeExampleSession(), { id:'default', name:'Default', solves: [] } ]
-  const [sessions,setSessions] = useLocalStorage('sessions', initialSessions)
-  const [currentId,setCurrentId] = useLocalStorage('currentSessionId', 'example')
+  const [sessions,setSessions] = useLocalStorage<Session[]>('sessions', initialSessions)
+  const [currentId,setCurrentId] = useLocalStorage<string>('currentSessionId', 'example')
   const current = useMemo(()=> sessions.find(s=>s.id===currentId) || sessions[0] || {id:'default',name:'Default',solves:[]}, [sessions,currentId])
 
   const addSession = (name:string)=> {
     const newId = uid()
-    setSessions(prev=>[...prev,{id:newId,name,solves:[]}])
+    setSessions(prev=>[...prev,{id:newId,name,solves:[], customAvgN:25}])
     setCurrentId(newId)
   }
 
@@ -110,7 +112,7 @@ export function SessionsProvider({children}:{children:React.ReactNode}){
     if (idv===currentId) {
       setCurrentId(next[0]?.id || 'default')
     }
-    return next.length? next : [{id:'default',name:'Default',solves:[],useSessionData:false,useSessionTimer:false}]
+    return next.length? next : [{id:'default',name:'Default',solves:[],useSessionData:false,useSessionTimer:false, customAvgN:25}]
   })
 
   const renameSession = (idv:string, name:string)=> setSessions(prev=> prev.map(s=> s.id===idv? {...s,name}: s))

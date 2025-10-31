@@ -2,7 +2,18 @@ import React, { createContext, useContext, useEffect } from 'react'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 
 export type PrecisionMode = '3dp'|'2dp'|'1dp'|'seconds'|'no-live'|'typing'
-export type DataShown = { mo3:boolean; ao5:boolean; ao12:boolean; ao25:boolean; ao50:boolean; ao100:boolean; predict: boolean }
+
+export type DataShown = {
+  mo3:boolean
+  ao5:boolean
+  ao12:boolean
+  ao25:boolean
+  ao50:boolean
+  ao100:boolean
+  predict:boolean
+  aoc:boolean           // <-- NEW: custom AO toggle
+}
+
 export type Settings = {
   precision:PrecisionMode
   holdToStartMs:number
@@ -18,7 +29,9 @@ export type Settings = {
   dataOrder:string[]
   sidebarGradient:boolean
   event:string
+  customAvgN:number     // <-- NEW: custom AO window size (N)
 }
+
 export const defaultSettings:Settings = {
   precision:'2dp',
   holdToStartMs:500,
@@ -30,11 +43,24 @@ export const defaultSettings:Settings = {
   textColor:'#e7e7e7',
   mutedColor:'#9aa1a9',
   multiphase:false,
-  dataShown:{ mo3:true, ao5:true, ao12:true, ao25:false, ao50:false, ao100:false, predict:true },
-  dataOrder:['BEST','MO3','AO5','AO12','AO25','AO50','AO100', 'predict'],
+  dataShown:{
+    mo3:true,
+    ao5:true,
+    ao12:true,
+    ao25:false,
+    ao50:false,
+    ao100:false,
+    predict:true,
+    aoc:false          
+  },
+  dataOrder:[
+    'BEST','MO3','AO5','AO12','AO25','AO50','AO100','AOC','predict' // <-- include AOC
+  ],
   sidebarGradient:true,
-  event:'333'
+  event:'333',
+  customAvgN:250         
 }
+
 type Ctx = {
   settings:Settings
   setSettings:React.Dispatch<React.SetStateAction<Settings>>
@@ -50,7 +76,8 @@ function mergeDefaults(s: any): Settings{
       ...((s && s.dataShown) || {})
     },
     dataOrder: Array.isArray(s?.dataOrder) ? s!.dataOrder : defaultSettings.dataOrder,
-    event: s?.event || defaultSettings.event
+    event: s?.event || defaultSettings.event,
+    customAvgN: typeof s?.customAvgN === 'number' ? s.customAvgN : defaultSettings.customAvgN 
   }
   return merged
 }
@@ -68,7 +95,14 @@ export function SettingsProvider({children}:{children:React.ReactNode}){
     root.style.setProperty('--bg', settings.bgColor)
     root.style.setProperty('--text', settings.textColor)
     root.style.setProperty('--muted', settings.mutedColor)
-  },[settings.sidebarColor,settings.panelColor,settings.timerColor,settings.bgColor,settings.textColor,settings.mutedColor])
+  },[
+    settings.sidebarColor,
+    settings.panelColor,
+    settings.timerColor,
+    settings.bgColor,
+    settings.textColor,
+    settings.mutedColor
+  ])
 
   return <SettingsContext.Provider value={{settings,setSettings:setRaw}}>{children}</SettingsContext.Provider>
 }

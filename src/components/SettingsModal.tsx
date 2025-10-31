@@ -11,7 +11,7 @@ import { formatMsPrec, dpFromMode } from "@/utils/format";
 import type { GraphCfg } from "@/contexts/SessionsContext";
 
 type DataShown = typeof defaultSettings.dataShown;
-type DataShownKey = keyof DataShown; // 'mo3' | 'ao5' | 'ao12' | 'ao25' | 'ao50' | 'ao100' | 'predict'
+type DataShownKey = keyof DataShown;
 
 const tips: Record<string, string> = {
   mo3: "Mean of 3: average of the last 3 solves.",
@@ -33,7 +33,6 @@ function GraphsEditor() {
   const { current, updateSession } = useSessions();
   const graphs: GraphCfg[] = current.graphs ?? [];
 
-  // Local drafts so typing "23" doesn't show "023" or force immediate clamping
   const [draftLast, setDraftLast] = React.useState<Record<string, string>>({});
 
   const add = () =>
@@ -44,7 +43,7 @@ function GraphsEditor() {
           id: Math.random().toString(36).slice(2, 10),
           last: 50,
           half: false,
-          type: 1, // default: Single
+          type: 1,
         },
       ],
     });
@@ -74,13 +73,14 @@ function GraphsEditor() {
     updateSession(current.id, { graphs: arr });
   };
 
-  // Commit draft -> number (clamp to >=1; if empty/invalid, set to 1)
   const commitLast = (id: string) => {
     const raw = draftLast[id];
     const parsed =
       raw === undefined || raw.trim() === "" ? NaN : Number(raw.trim());
     const n = Number.isFinite(parsed) ? Math.max(1, Math.floor(parsed)) : 1;
-    set(id, { last: n });
+    updateSession(current.id, {
+      graphs: graphs.map((g) => (g.id === id ? { ...g, last: n } : g)),
+    });
     setDraftLast((d) => {
       const cp = { ...d };
       delete cp[id];
@@ -146,7 +146,6 @@ function GraphsEditor() {
                 width: "100%",
               }}
             >
-              {/* Last solves (text with numeric filtering) */}
               <div>
                 Last solves:{" "}
                 <input
@@ -163,14 +162,11 @@ function GraphsEditor() {
                   }}
                   onBlur={() => commitLast(g.id)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.currentTarget.blur();
-                    }
+                    if (e.key === "Enter") e.currentTarget.blur();
                   }}
                 />
               </div>
 
-              {/* Width toggle */}
               <div>
                 <button
                   className="icon-btn"
@@ -180,7 +176,6 @@ function GraphsEditor() {
                 </button>
               </div>
 
-              {/* Height */}
               <div>
                 Height:{" "}
                 <select
@@ -196,7 +191,6 @@ function GraphsEditor() {
                 </select>
               </div>
 
-              {/* Type (Single / MO3 / AO5 / AO12) */}
               <div>
                 Type:{" "}
                 <select
@@ -215,7 +209,6 @@ function GraphsEditor() {
                 </select>
               </div>
 
-              {/* Remove */}
               <div>
                 <button className="icon-btn" onClick={() => remove(g.id)}>
                   Remove
@@ -253,17 +246,14 @@ export default function SettingsModal({
     dpFromMode(usingSessionTimer ? effTimer.precision : settings.precision)
   );
 
-  /*  DATA  */
   const usingSessionData = current.useSessionData === true;
   const rawShown = usingSessionData ? current.dataShown : settings.dataShown;
 
-  // Merge defaults
   const ds = React.useMemo<DataShown>(
     () => ({ ...defaultSettings.dataShown, ...(rawShown ?? {}) }),
     [rawShown]
   );
 
-  // Stable order
   const orderedKeys = React.useMemo<DataShownKey[]>(() => {
     const base = ((defaultSettings.dataOrder ?? []) as string[])
       .filter((k) => k !== "BEST")
@@ -311,7 +301,6 @@ export default function SettingsModal({
     }));
   };
 
-  // Save toggle merge with defaults
   const updateDataShown = (key: DataShownKey, value: boolean) => {
     if (usingSessionData) {
       const next: DataShown = {
@@ -332,13 +321,49 @@ export default function SettingsModal({
     }
   };
 
-  // render conditionally
+  // custom average controls (N and show toggle stored with session when scoped)
+  const effCustomN =
+    usingSessionData
+      ? current.customAvgN ?? 25
+      : (settings as any).customAvgN ?? 25;
+  const effCustomEnabled =
+    usingSessionData
+      ? (current as any).customAvgEnabled ?? false
+      : (settings as any).customAvgEnabled ?? false;
+
+  const [customDraft, setCustomDraft] = React.useState<string>(
+    String(effCustomN)
+  );
+  React.useEffect(() => setCustomDraft(String(effCustomN)), [effCustomN]);
+
+  const commitCustomN = () => {
+    const raw = customDraft.trim();
+    const parsed = raw === "" ? NaN : Number(raw);
+    let n = Number.isFinite(parsed) ? Math.floor(parsed) : effCustomN;
+    if (n < 3) n = 3;
+    if (usingSessionData) {
+      updateSession(current.id, { customAvgN: n });
+    } else {
+      setSettings((s: any) => ({ ...s, customAvgN: n }));
+    }
+    setCustomDraft(String(n));
+  };
+
+  const setCustomEnabled = (checked: boolean) => {
+    if (usingSessionData) {
+      updateSession(current.id, { customAvgEnabled: checked } as any);
+    } else {
+      setSettings((s: any) => ({ ...s, customAvgEnabled: checked }));
+    }
+  };
+
+  // render
   return (
     <>
       {open && (
         <div className="modal-backdrop" onClick={onClose}>
           <div
-            className="modal modal-wide"
+            className="modal modal-wide-settings"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="settings-header">
@@ -398,7 +423,7 @@ export default function SettingsModal({
                   </div>
                 </div>
 
-                <label>Timer display/mode</label>
+                <label>Precision / timer mode</label>
                 <select
                   value={
                     usingSessionTimer ? effTimer.precision : settings.precision
@@ -604,12 +629,71 @@ export default function SettingsModal({
                   {best == null ? "—" : formatMsPrec(best, dp)}
                 </div>
 
+                {/* Custom Average (N, drop 5%) */}
+                <div className="data-grid wide" style={{ marginBottom: 10 }}>
+                  <label className="data-row">
+                    <input
+                      type="checkbox"
+                      checked={!!effCustomEnabled}
+                      onChange={(e) => setCustomEnabled(e.target.checked)}
+                    />
+                    <span className="abbr">{`CA${effCustomN}`}</span>
+                    <span className="qm" title="Custom average over N solves, dropping 5% best and 5% worst (floor).">
+                      ?
+                    </span>
+                    <span style={{ marginLeft: 8 }} />
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      N:
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="\d*"
+                        value={customDraft}
+                        onChange={(e) => {
+                          const raw = e.currentTarget.value;
+                          if (/^\d*$/.test(raw)) setCustomDraft(raw);
+                        }}
+                        onBlur={commitCustomN}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
+                        }}
+                        style={{
+                          width: 64,
+                          background: "var(--panel-bg)",
+                          color: "var(--text)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 10,
+                          padding: "6px 8px",
+                          fontFamily:
+                            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                        }}
+                      />
+                    </span>
+                    <span className="spacer" />
+                    {(() => {
+                      const n = Math.max(3, effCustomN | 0);
+                      const drop = Math.floor(n * 0.05);
+                      const cur = currentAverage(current.solves, n, drop);
+                      const bestAvgV = bestAverage(current.solves, n, drop);
+                      const none = cur == null && bestAvgV == null;
+                      return none ? (
+                        <span className="statline">—</span>
+                      ) : (
+                        <span className="statline">
+                          current: <b>{cur == null ? "—" : formatMsPrec(cur, dp)}</b>
+                          <br />
+                          best: <b>{bestAvgV == null ? "—" : formatMsPrec(bestAvgV, dp)}</b>
+                        </span>
+                      );
+                    })()}
+                  </label>
+                </div>
+
+                {/* Standard toggles */}
                 <div className="data-grid wide">
                   {orderedKeys.map((k: DataShownKey) => {
                     const v = ds[k];
-                    const keyUpper = k.toUpperCase(); // MO3, AO5, PREDICT, etc.
-
-                    // Only compute averages for MO3/AO*; others show dashes
+                    const keyUpper = k.toUpperCase();
                     const isAvg =
                       keyUpper === "MO3" || /^AO\d+$/.test(keyUpper);
                     const spec = isAvg ? specFor(keyUpper) : null;
@@ -622,6 +706,7 @@ export default function SettingsModal({
                     const none = !isAvg || (cur == null && bestAvg == null);
 
                     return (
+                      keyUpper == "AOC" ? null :
                       <label key={k} className="data-row">
                         <input
                           type="checkbox"
