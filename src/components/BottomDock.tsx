@@ -34,18 +34,18 @@ export default function BottomDock({ children }: { children: React.ReactNode; })
     startH.current = dockH;
     const onMove = (ev: MouseEvent | TouchEvent)=>{
       const y = "touches" in ev ? (ev as TouchEvent).touches[0].clientY : (ev as MouseEvent).clientY;
-      const dy = startY.current - y; // drag up => increase height
+      const dy = startY.current - y; // drag up -> increase height
       const sidebarH = getVarPx("--sidebar-h", getVarPx("--dock-h",160));
-      const stackMax = Math.round(window.innerHeight * 0.7); // 70% viewport on mobile/compact
+      const stackMax = Math.round(window.innerHeight * 0.7); // 70% viewport on mobile
       let nextDock = Math.max(minDock, startH.current + dy);
 
-      // Enforce combined cap; if we exceed, shrink sidebar to compensate
+      // enforce combined cap
       if (nextDock + sidebarH > stackMax){
         const newSidebar = Math.max(minSidebar, stackMax - nextDock);
         setVarPx("--sidebar-h", newSidebar);
         localStorage.setItem("sidebarH", String(newSidebar));
       }
-      // Also prevent dock from stealing all space when sidebar is at min
+      // prevent dock from stealing all space when sidebar is at min
       const currentSidebar = getVarPx("--sidebar-h", 160);
       if (nextDock + currentSidebar > stackMax){
         nextDock = Math.max(minDock, stackMax - currentSidebar);

@@ -6,13 +6,13 @@ import { genScramble } from '@/utils/scramble'
 import { formatMsPrec } from '@/utils/format'
 
 function dpFromMode(mode:string):0|1|2|3{
-  if (mode==='2dp') return 2
+  if (mode==='3dp') return 3
   if (mode==='1dp') return 1
   if (mode==='seconds') return 0
-  return 3 // '3dp' or anything else defaults to 3
+  return 2 // default to 2
 }
 
-// Parse flexible time strings -> ms (accepts "12.34", "1:12.34", "12", "1:02.345")
+// accepts "12.34", "1:12.34", "12", "1:02.345"
 function parseTimeToMs(input: string): number | null {
   const t = (input || '').trim().replace(',', '.');
   if (!t) return null;
@@ -42,7 +42,6 @@ export default function TimerDisplay({onSolve}:{onSolve:(ms:number, scramble:str
 
   const isTypingMode = effPrecision === 'typing'
 
-  // --- Typing mode UI ---
   const [typed, setTyped] = React.useState('')
   const [invalid, setInvalid] = React.useState<string | null>(null)
 
@@ -58,7 +57,7 @@ export default function TimerDisplay({onSolve}:{onSolve:(ms:number, scramble:str
     setScramble(genScramble(settings.event as any))
   }
 
-  // Allow Enter to submit in typing mode
+  // enter to submit in typing mode
   const onTypingKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -66,7 +65,7 @@ export default function TimerDisplay({onSolve}:{onSolve:(ms:number, scramble:str
     }
   }
 
-  // --- Timer mode (non-typing) ---
+  // timer mode
   const {running,ready,holding,elapsed,stop, handleHoldStart, handleHoldEnd} = useTimer({
     holdToStartMs: effHold,
     phases: effPhases,
@@ -81,7 +80,7 @@ export default function TimerDisplay({onSolve}:{onSolve:(ms:number, scramble:str
   },[running,stop,isTypingMode])
 
   const stateClass = !isTypingMode && !running && holding && !ready ? 'holding' : (!isTypingMode && !running && ready ? 'ready' : '')
-  const dp = isTypingMode ? 3 : dpFromMode(effPrecision as string)
+  const dp = isTypingMode ? 2 : dpFromMode(effPrecision as string)
   const showLive = effPrecision !== 'no-live'
   const display = running
     ? (showLive ? formatMsPrec(elapsed, dp) : 'solve')
@@ -91,7 +90,7 @@ export default function TimerDisplay({onSolve}:{onSolve:(ms:number, scramble:str
     <div className="timer-wrap">
       <div className="scramble">{scramble}</div>
 
-      {/* Typing mode */}
+      {/* typing mode */}
       {isTypingMode ? (
         <div className="timer-center">
           <div className="typing-wrap">
@@ -110,7 +109,7 @@ export default function TimerDisplay({onSolve}:{onSolve:(ms:number, scramble:str
           </div>
         </div>
       ) : (
-        // Normal timer mode
+        // normal mode
         <div
           className="timer-center"
           onTouchStart={() => { if (!isTypingMode) handleHoldStart(); }}

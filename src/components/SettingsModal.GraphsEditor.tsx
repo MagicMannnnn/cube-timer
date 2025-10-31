@@ -26,7 +26,6 @@ export default function GraphsEditor(){
 
   return (
     <div className="data-grid wide">
-      {/* Top controls: only Add */}
       <div className="row" style={{gap:8}}>
         <button className="icon-btn" onClick={add}>+ Add graph</button>
       </div>

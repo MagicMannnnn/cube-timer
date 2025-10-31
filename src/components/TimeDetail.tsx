@@ -55,7 +55,7 @@ export default function TimeDetail({
           typeof s.timeMs === "number" ? (
             <>
               {(() => {
-                const cum = s.splits as number[]; // cumulative marks
+                const cum = s.splits as number[]; // cumulative
                 const segs: number[] = cum.map(
                   (v, i) => v - (i > 0 ? cum[i - 1] : 0)
                 );

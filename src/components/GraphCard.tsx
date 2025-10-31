@@ -25,7 +25,7 @@ export default function GraphCard({ title, solves, last, dp, height = 140, onCli
   const n = data.length
   const w = 600, h = height, padL = 40, padB = 26, padT = 12, padR = 8
 
-  // enforce minimum 2dp, but respect higher dp if provided
+  // enforce minimum 2dp
   const minDp = 2
   const maxDp = Math.max(minDp, dp)
   const fmt = new Intl.NumberFormat(undefined, {
@@ -77,7 +77,7 @@ export default function GraphCard({ title, solves, last, dp, height = 140, onCli
           const max = yMax
           const span = Math.max(1, max - min)
           const y = h - padB - ((v - min) / span) * (h - padT - padB)
-          const label = fmt.format(v / 1000) // seconds with >=2dp
+          const label = fmt.format(v / 1000) // seconds
           return (
             <g key={i}>
               <line x1={padL} y1={y} x2={w - padR} y2={y} stroke="currentColor" opacity="0.08" strokeWidth="1" />

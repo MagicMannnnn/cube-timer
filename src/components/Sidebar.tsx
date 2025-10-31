@@ -4,10 +4,10 @@ import { useSettings } from '@/contexts/SettingsContext'
 import React, { useEffect, useRef, useState } from 'react'
 import { NewSessionModal, DeleteSessionModal } from '@/components/SessionModals'
 
-// Diverging colour around the average:
-// - orange (≈30°) at the average
-// - green (120°) for faster than average (the best side)
-// - red (0°) for slower than average (the worst side)
+// color around average
+// orange at average
+// green faster than average
+// red slower than average
 const ORANGE_HUE = 30
 const GREEN_HUE = 120
 const RED_HUE = 0
@@ -20,7 +20,7 @@ export default function Sidebar({ onSelectSolve }: { onSelectSolve: (id: string)
 
   const dp = dpAtLeast2FromMode(settings.precision)
 
-  // === Stats for colouring ===
+  // stats for coloring
   const okTimes = current.solves
     .map(x => (x.status === 'DNF' ? null : x.timeMs + (x.status === 'PLUS2' ? 2000 : 0)))
     .filter((x): x is number => x != null)
@@ -29,9 +29,9 @@ export default function Sidebar({ onSelectSolve }: { onSelectSolve: (id: string)
     ? okTimes.reduce((a, b) => a + b, 0) / okTimes.length
     : null
 
-  // Compute the maximum deviation on each side of the average
-  let devAboveMax = 0 // slower/worse side (>= avg)
-  let devBelowMax = 0 // faster/better side (< avg)
+  // max deviation each side
+  let devAboveMax = 0
+  let devBelowMax = 0
   if (avg != null) {
     for (const t of okTimes) {
       if (t >= avg) devAboveMax = Math.max(devAboveMax, t - avg)
@@ -43,21 +43,21 @@ export default function Sidebar({ onSelectSolve }: { onSelectSolve: (id: string)
     if (avg == null || ms == null) return undefined
 
     if (ms >= avg) {
-      // Worse than (or equal to) average: ORANGE -> RED
+      // worse than average orange to red
       const denom = devAboveMax > 0 ? devAboveMax : 1
-      const t = Math.min(1, (ms - avg) / denom) // 0 at avg, 1 at worst
-      const hue = ORANGE_HUE + (RED_HUE - ORANGE_HUE) * t // 30 -> 0
+      const t = Math.min(1, (ms - avg) / denom)
+      const hue = ORANGE_HUE + (RED_HUE - ORANGE_HUE) * t
       return `hsl(${hue} 70% 60%)`
     } else {
-      // Better than average: ORANGE -> GREEN
+      // better than average orange to green
       const denom = devBelowMax > 0 ? devBelowMax : 1
-      const t = Math.min(1, (avg - ms) / denom) // 0 at avg, 1 at best
-      const hue = ORANGE_HUE + (GREEN_HUE - ORANGE_HUE) * t // 30 -> 120
+      const t = Math.min(1, (avg - ms) / denom)
+      const hue = ORANGE_HUE + (GREEN_HUE - ORANGE_HUE) * t
       return `hsl(${hue} 70% 60%)`
     }
   }
 
-  // ---- DRAG-RESIZE (coordinated with BottomDock via CSS vars) ----
+  // drag resize coordinated with bottom dock via css vars
   const minSidebar = 60
   const minDock = 60
 
@@ -94,21 +94,20 @@ export default function Sidebar({ onSelectSolve }: { onSelectSolve: (id: string)
           ? (ev as TouchEvent).touches[0].clientY
           : (ev as MouseEvent).clientY
 
-      const dy = startY.current - y // drag up to increase height
+      const dy = startY.current - y
 
       const dockH = getVarPx('--dock-h', 160)
-      const stackMax = Math.round(window.innerHeight * 0.7) // shared cap (~70vh)
+      const stackMax = Math.round(window.innerHeight * 0.7)
 
       let nextSidebar = Math.max(minSidebar, startH.current + dy)
 
-      // If the sum would exceed the cap, shrink the dock while sidebar grows
       if (nextSidebar + dockH > stackMax) {
         const newDock = Math.max(minDock, stackMax - nextSidebar)
         setVarPx('--dock-h', newDock)
         localStorage.setItem('dockH', String(newDock))
       }
 
-      // Prevent overshoot if dock already at min
+      // prevent overshoot if dock at min
       const currentDock = getVarPx('--dock-h', 160)
       if (nextSidebar + currentDock > stackMax) {
         nextSidebar = Math.max(minSidebar, stackMax - currentDock)
@@ -130,11 +129,11 @@ export default function Sidebar({ onSelectSolve }: { onSelectSolve: (id: string)
     window.addEventListener('mouseup', end)
     window.addEventListener('touchend', end)
   }
-  // ---- END DRAG-RESIZE ----
+  // end drag resize
 
   return (
     <aside className="sidebar">
-      {/* Mobile drag handle to resize sidebar height */}
+      {/* mobile drag handle to resize sidebar height */}
       <div
         className="sidebar-resize"
         onMouseDown={onSidebarDown}

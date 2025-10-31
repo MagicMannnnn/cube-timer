@@ -10,7 +10,6 @@ import {
 import { formatMsPrec, dpFromMode } from "@/utils/format";
 import type { GraphCfg } from "@/contexts/SessionsContext";
 
-/** ----- TYPES to fix implicit any when indexing dataShown ----- */
 type DataShown = typeof defaultSettings.dataShown;
 type DataShownKey = keyof DataShown; // 'mo3' | 'ao5' | 'ao12' | 'ao25' | 'ao50' | 'ao100' | 'predict'
 
@@ -169,18 +168,17 @@ export default function SettingsModal({
     dpFromMode(usingSessionTimer ? effTimer.precision : settings.precision)
   );
 
-  /** -------- DATA (merge defaults so new keys show for sessions too) -------- */
+  /*  DATA  */
   const usingSessionData = current.useSessionData === true;
   const rawShown = usingSessionData ? current.dataShown : settings.dataShown;
 
-  // Merge defaults with stored values, with proper typing (hooks run every render)
+  // Merge defaults
   const ds = React.useMemo<DataShown>(
     () => ({ ...defaultSettings.dataShown, ...(rawShown ?? {}) }),
     [rawShown]
   );
 
-  // Stable order driven by defaultSettings.dataOrder minus BEST,
-  // then append any extra keys (like 'predict') so nothing is lost
+  // Stable order
   const orderedKeys = React.useMemo<DataShownKey[]>(() => {
     const base = ((defaultSettings.dataOrder ?? []) as string[])
       .filter((k) => k !== "BEST")
@@ -228,7 +226,7 @@ export default function SettingsModal({
     }));
   };
 
-  // Save toggle: merge with defaults so new keys persist correctly (typed key)
+  // Save toggle merge with defaults
   const updateDataShown = (key: DataShownKey, value: boolean) => {
     if (usingSessionData) {
       const next: DataShown = {
@@ -249,7 +247,7 @@ export default function SettingsModal({
     }
   };
 
-  // ❗ Do NOT early-return before hooks; render conditionally instead.
+  // render conditionally
   return (
     <>
       {open && (
