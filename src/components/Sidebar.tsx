@@ -84,6 +84,62 @@ export default function Sidebar({ onSelectSolve }: { onSelectSolve: (id: string)
   const startH = useRef(0)
   const raf = useRef<number | null>(null)
 
+
+  const getSolves = (): any => {
+    const previous: number[] = current.solves.map((s) => {
+      const ms =
+        s.status === 'DNF'
+          ? 0
+          : s.timeMs + (s.status === 'PLUS2' ? 2000 : 0)
+
+      return ms;
+    });
+    return current.solves.map((s, i) => {
+      const displayIndex = current.solves.length - i
+      const ms =
+        s.status === 'DNF'
+          ? null
+          : s.timeMs + (s.status === 'PLUS2' ? 2000 : 0)
+
+      const color = colorFromAverage(ms)
+      let sum = 0;
+      for (let s of previous) {
+        sum += s;
+      }
+      const mean = sum / previous.length;
+      previous.shift();
+      return (
+        <div
+          key={s.id}
+          className="time-item"
+          onClick={() => onSelectSolve(s.id)}
+          style={{ borderLeft: color ? `4px solid ${color}` : undefined }}
+        >
+          <div>
+            <span className="time-index">{displayIndex}:</span>{' '}
+            {s.status === 'DNF'
+              ? 'DNF'
+              : formatMsPrec(
+                s.status === 'PLUS2' ? s.timeMs + 2000 : s.timeMs,
+                dp
+              )}
+          </div>
+          <div className="time-meta">
+            <span className={`badge status-${s.status}`}>
+              {s.status === 'PLUS2' ? '+2' : s.status}
+            </span>
+            {<span>mean: {formatMsPrec(
+                mean,
+                dp
+              )}</span>
+            }
+          </div>
+        </div>
+      )
+    })
+  }
+
+
   const onSidebarDown = (e: React.MouseEvent | React.TouchEvent) => {
     startY.current = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY
     startH.current = sidebarH
@@ -168,40 +224,7 @@ export default function Sidebar({ onSelectSolve }: { onSelectSolve: (id: string)
           </div>
         )}
 
-        {current.solves.map((s, i) => {
-          const displayIndex = current.solves.length - i
-          const ms =
-            s.status === 'DNF'
-              ? null
-              : s.timeMs + (s.status === 'PLUS2' ? 2000 : 0)
-
-          const color = colorFromAverage(ms)
-
-          return (
-            <div
-              key={s.id}
-              className="time-item"
-              onClick={() => onSelectSolve(s.id)}
-              style={{ borderLeft: color ? `4px solid ${color}` : undefined }}
-            >
-              <div>
-                <span className="time-index">{displayIndex}:</span>{' '}
-                {s.status === 'DNF'
-                  ? 'DNF'
-                  : formatMsPrec(
-                      s.status === 'PLUS2' ? s.timeMs + 2000 : s.timeMs,
-                      dp
-                    )}
-              </div>
-              <div className="time-meta">
-                <span className={`badge status-${s.status}`}>
-                  {s.status === 'PLUS2' ? '+2' : s.status}
-                </span>
-                <span>{new Date(s.createdAt).toLocaleTimeString()}</span>
-              </div>
-            </div>
-          )
-        })}
+        {getSolves()}
       </div>
 
       <NewSessionModal
