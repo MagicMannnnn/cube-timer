@@ -3,6 +3,7 @@
 A fast, clean, mobile-friendly (ish, im getting there) Rubik’s Cube timer built with React + Vite. Focused on smooth UX, accurate timing, and simple session management.
 
 ## Features
+- **expansive Settings** including fully customisable visuals, timing options and data+graph options.
 - **Accurate timing** with optional hold-to-start and multi-phase splits.  
 - **Precision/Timer mode:** live timer (3dp / 2dp / 1dp / seconds / no-live) or **Typing mode** (press Enter to submit; numeric validation).  
 - **Stats at a glance:** best single, Mo3, Ao5 / Ao12 / Ao25 / Ao50 / Ao100, plus **CAx custom average** (defaults to 5% drop).  
